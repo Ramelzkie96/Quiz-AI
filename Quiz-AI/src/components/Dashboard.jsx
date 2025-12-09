@@ -18,13 +18,14 @@ const Dashboard = ({ user }) => {
   const [startQuiz, setStartQuiz] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState(null);
   const [selectedDifficulty, setSelectedDifficulty] = useState(null);
-  const [countdown, setCountdown] = useState(5);
+  const [countdown, setCountdown] = useState(3);
   const [quizStarted, setQuizStarted] = useState(false);
 
   // New States 🔥
   const [questions, setQuestions] = useState([]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [loadingQuiz, setLoadingQuiz] = useState(false);
+  const [answers, setAnswers] = useState({});
 
   // STEP 1: Fetch Questions from Backend
   const fetchQuiz = async () => {
@@ -61,7 +62,7 @@ const Dashboard = ({ user }) => {
 
   // STEP 2: Countdown & Fetch before Start
   useEffect(() => {
-    if (selectedCategory && selectedDifficulty && countdown === 5) {
+    if (selectedCategory && selectedDifficulty && countdown === 3) {
       fetchQuiz(); // fetch when countdown starts
     }
 
@@ -86,9 +87,13 @@ const Dashboard = ({ user }) => {
     }
   };
 
-  const handleAnswerSelect = (answer) => {
-    console.log("User selected:", answer);
-  };
+ 
+const handleAnswerSelect = (answer) => {
+  setAnswers((prev) => ({
+    ...prev,
+    [currentIndex]: answer, // store by index
+  }));
+};
 
   return (
     <div>
@@ -120,17 +125,19 @@ const Dashboard = ({ user }) => {
             ⏳ Loading Questions from AI...
           </p>
         ) : (
-          <div className="mt-10">
-            <QuizCard
-              questionNumber={currentIndex + 1}
-              totalQuestions={questions.length}
-              question={questions[currentIndex]?.question}
-              options={questions[currentIndex]?.options}
-              onSelect={handleAnswerSelect}
-              onNext={handleNext}
-              onBack={handleBack}
-            />
-          </div>
+         <div className="mt-10">
+          <QuizCard
+            questionNumber={currentIndex + 1}
+            totalQuestions={questions.length}
+            question={questions[currentIndex]?.question}
+            options={questions[currentIndex]?.options}
+            selectedAnswer={answers[currentIndex] ?? null}
+            onSelect={handleAnswerSelect}
+            onNext={handleNext}
+            onBack={handleBack}
+            //onSubmit={handleSubmitQuiz} // 👈 NEW
+          />
+        </div>
         )}
       </main>
     </div>
