@@ -127,16 +127,18 @@ const handleAnswerSelect = (answer) => {
         ) : (
          <div className="mt-10">
           <QuizCard
-            questionNumber={currentIndex + 1}
-            totalQuestions={questions.length}
-            question={questions[currentIndex]?.question}
-            options={questions[currentIndex]?.options}
-            selectedAnswer={answers[currentIndex] ?? null}
-            onSelect={handleAnswerSelect}
-            onNext={handleNext}
-            onBack={handleBack}
-            //onSubmit={handleSubmitQuiz} // 👈 NEW
-          />
+              questionNumber={currentIndex + 1}
+              totalQuestions={questions.length}
+              question={questions[currentIndex]?.question}
+              options={questions[currentIndex]?.options}
+              selectedAnswer={answers[currentIndex] ?? null}
+              category={selectedCategory}                
+              difficulty={selectedDifficulty.level}       
+              onSelect={handleAnswerSelect}
+              onNext={handleNext}
+              onBack={handleBack}
+              // onSubmit={handleSubmitQuiz}
+            />
         </div>
         )}
       </main>
