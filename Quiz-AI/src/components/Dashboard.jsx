@@ -6,6 +6,26 @@ import DifficultySelect from "./DifficultySelect";
 import QuizCard from "./QuizCard";
 import CountdownScreen from "./CountdownScreen";
 import QuizResult from "./QuizResult";
+import { getFirestore, doc, setDoc, arrayUnion } from "firebase/firestore";
+import { getAuth } from "firebase/auth";
+
+const db = getFirestore();
+const auth = getAuth();
+// Add this under your imports
+const styles = `
+@keyframes loadingDots {
+  0% { content: "."; }
+  25% { content: ".."; }
+  50% { content: "..."; }
+  75% { content: "...."; }
+  100% { content: "."; }
+}
+.loading-dots::after {
+  content: "...";
+  animation: loadingDots 1.2s infinite steps(4);
+}
+`;
+
 
 const Dashboard = ({ user }) => {
   const firstName = user.displayName.split(" ")[0].replace(/,$/, "").trim();
@@ -37,32 +57,59 @@ const [score, setScore] = useState(0);
   // STEP 1: Fetch Questions from Backend
 const fetchQuiz = async () => {
   setLoadingQuiz(true);
-  setErrorMessage(""); // reset previous error
+  setErrorMessage("");
 
   try {
     const response = await fetch("http://localhost:5000/generate-quiz", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ category: selectedCategory, difficulty: selectedDifficulty.level, count: selectedDifficulty.count }),
+      body: JSON.stringify({
+        category: selectedCategory,
+        difficulty: selectedDifficulty.level,
+        count: selectedDifficulty.count
+      }),
     });
 
+    const data = await response.json();
+
     if (!response.ok) {
-      // extract error message from backend response
-      const errData = await response.json();
-      throw new Error(errData.error || "Unknown error occurred");
+
+      // ⭐ NEW: Handle 429 daily quota limit from backend
+      if (response.status === 429) {
+        const reset = data.resetIn || "unknown time";
+        const retry = data.retryAfterSeconds || 60;
+
+        setErrorMessage(
+          `🚫 Gemini Free Tier Limit Reached\n\n` +
+          `You used all 20 free requests for today.\n` +
+          `⏳ Resets in: ${reset}\n` +
+          `🔁 Retry possible after: ${retry} seconds`
+        );
+
+        setLoadingQuiz(false);
+        return;
+      }
+
+      throw new Error(data.error || "Unknown error occurred");
     }
 
-    const data = await response.json();
     setQuestions(data);
 
   } catch (error) {
     console.error("Fetch Error:", error);
-    setErrorMessage(error.message); // set user message
+    setErrorMessage(error.message);
   }
 
   setLoadingQuiz(false);
 };
 
+
+useEffect(() => {
+  const s = document.createElement("style");
+  s.innerHTML = styles;
+  document.head.appendChild(s);
+  return () => document.head.removeChild(s);
+}, []);
 
 
   // STEP 2: Countdown & Fetch before Start
@@ -112,9 +159,9 @@ const DelayedMessage = ({ time, children }) => {
   return show ? children : null;
 };
 
-const handleSubmitQuiz = () => {
+const handleSubmitQuiz = async () => {
+  // Compute the score
   let computedScore = 0;
-
   questions.forEach((q, idx) => {
     if (answers[idx] === q.answer) {
       computedScore++;
@@ -123,7 +170,34 @@ const handleSubmitQuiz = () => {
 
   setScore(computedScore);
   setQuizFinished(true);
+
+  try {
+    const user = auth.currentUser;
+    if (!user) return; // if user not logged in, skip saving
+
+    const userRef = doc(db, "users", user.uid);
+
+    // Save the quiz attempt in a "scores" array
+    await setDoc(
+      userRef,
+      {
+        scores: arrayUnion({
+          score: computedScore,
+          totalQuestions: questions.length,
+          category: selectedCategory,
+          difficulty: selectedDifficulty.level,
+          timestamp: new Date()
+        })
+      },
+      { merge: true } // merge so it doesn't overwrite existing data
+    );
+
+    alert("✅ Quiz score saved to Firestore");
+  } catch (err) {
+    alert("❌ Error saving score:", err);
+  }
 };
+
 
 const handleRestart = () => {
   alert("testing")
@@ -162,20 +236,20 @@ const handleViewAnswers = () => {
           countdown={countdown}
         />
       ) : loadingQuiz ? (
-        <div className="text-center mt-10">
-          <p className="text-xl font-semibold text-green-600 flex justify-center items-center gap-2">
-            <span className="animate-spin">⏳</span>
-            <span className="loading-dots">Loading Questions from AI</span>
-          </p>
+  <div className="text-center mt-10">
+    <p className="text-xl font-semibold text-green-600 flex justify-center items-center gap-2">
+      <span className="animate-spin inline-block text-3xl">⏳</span>
+      <span className="loading-dots text-xl">Loading Questions from AI</span>
+    </p>
 
-          {loadingQuiz && (
-            <DelayedMessage time={10000}>
-              <p className="text-sm text-gray-500 mt-4 italic">
-                🤖 The AI is generating your quiz… please wait.
-              </p>
-            </DelayedMessage>
-          )}
-        </div>
+    {/* After 10 seconds show extra message */}
+    <DelayedMessage time={10000}>
+      <p className="text-sm text-gray-500 mt-4 italic">
+        🤖 The AI is generating your quiz… please wait.
+      </p>
+    </DelayedMessage>
+  </div>
+
       ) : quizFinished ? (
         <QuizResult
           score={score}

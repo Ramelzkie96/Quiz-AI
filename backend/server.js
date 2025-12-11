@@ -22,6 +22,29 @@ const ai = new GoogleGenAI({
   apiKey: process.env.GOOGLE_API_KEY
 });
 
+
+// ⭐ Function: Get hours/minutes until free-tier quota resets (midnight UTC)
+function getHoursUntilQuotaReset() {
+  const now = new Date();             
+  const utcNow = new Date(now.toISOString());
+
+  // Daily reset → midnight UTC next day
+  const reset = new Date(Date.UTC(
+    utcNow.getUTCFullYear(),
+    utcNow.getUTCMonth(),
+    utcNow.getUTCDate() + 1,
+    0, 0, 0
+  ));
+
+  const diffMs = reset - utcNow;
+  const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+  const diffMinutes = Math.floor((diffMs / (1000 * 60)) % 60);
+
+  return { diffHours, diffMinutes };
+}
+
+
+
 // Generate Quiz Questions
 app.post("/generate-quiz", async (req, res) => {
   const { category, difficulty, count } = req.body;
@@ -80,17 +103,44 @@ app.post("/generate-quiz", async (req, res) => {
   } catch (error) {
     console.error("❌ Error generating quiz:", error);
 
-    // 🌐 Handle timeouts or busy server
+    // 🌐 503 — AI Server Busy
     if (error.status === 503) {
       return res.status(503).json({
         error: "AI server is busy. Please try again later."
       });
     }
 
-    // 🔐 Invalid or expired API key
+    // 🔐 401 — Invalid API Key
     if (error.status === 401) {
       return res.status(401).json({
         error: "Invalid or expired API key."
+      });
+    }
+
+    // 🚫 429 — FREE TIER DAILY LIMIT REACHED
+    if (error.status === 429) {
+      let retrySeconds = 60; // fallback
+
+      // extract retryDelay from API if available
+      try {
+        const errData = JSON.parse(error.message);
+        const retryInfo = errData.error.details?.find(
+          d => d['@type']?.includes("RetryInfo")
+        );
+        if (retryInfo?.retryDelay) {
+          retrySeconds = parseInt(retryInfo.retryDelay.replace("s", ""));
+        }
+      } catch {
+        // ignore parse issues
+      }
+
+      // ⭐ Add daily reset timer (hours + minutes)
+      const { diffHours, diffMinutes } = getHoursUntilQuotaReset();
+
+      return res.status(429).json({
+        error: `You used all 20 FREE daily Gemini API requests.`,
+        resetIn: `${diffHours} hours ${diffMinutes} minutes`,
+        retryAfterSeconds: retrySeconds
       });
     }
 
@@ -99,6 +149,7 @@ app.post("/generate-quiz", async (req, res) => {
       error: "Failed to generate quiz. Please try again."
     });
   }
+
 });
 
 app.listen(PORT, () => {
