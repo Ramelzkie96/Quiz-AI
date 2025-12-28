@@ -22,6 +22,11 @@ const DifficultySelect = ({ category, onSelect }) => {
 
   return (
     <div className="max-w-4xl mx-auto mt-10 space-y-8">
+      {/* <button
+          className="mb-4 cursor-pointer flex items-center text-green-600 font-medium hover:text-green-800 transition"
+        >
+          ← Back
+        </button> */}
       {/* Message */}
       <div className="text-center mb-2">
         <p className="text-sm text-green-700 font-medium">

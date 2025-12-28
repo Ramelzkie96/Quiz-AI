@@ -6,8 +6,11 @@ import DifficultySelect from "./DifficultySelect";
 import QuizCard from "./QuizCard";
 import CountdownScreen from "./CountdownScreen";
 import QuizResult from "./QuizResult";
-import { getFirestore, doc, setDoc, arrayUnion } from "firebase/firestore";
+import {getFirestore, doc, getDoc, setDoc, arrayUnion } from "firebase/firestore";
 import { getAuth } from "firebase/auth";
+import QuizAnswers from "./QuizAnswers";
+import ReturningUser from "./ReturningUser";
+import LoadingQuiz from "./LoadingQuiz";
 
 const db = getFirestore();
 const auth = getAuth();
@@ -25,32 +28,107 @@ const styles = `
   animation: loadingDots 1.2s infinite steps(4);
 }
 `;
-
-
 const Dashboard = ({ user }) => {
   const firstName = user.displayName.split(" ")[0].replace(/,$/, "").trim();
 
-  const stats = {
-    completedQuizzes: 0,
-    accuracy: null,
-    averageScore: null,
-  };
+  const [stats, setStats] = useState(null);
+const [lastQuiz, setLastQuiz] = useState(null);
 
   const [startQuiz, setStartQuiz] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState(null);
   const [selectedDifficulty, setSelectedDifficulty] = useState(null);
   const [countdown, setCountdown] = useState(3);
   const [quizStarted, setQuizStarted] = useState(false);
-
-  // New States 🔥
   const [questions, setQuestions] = useState([]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [loadingQuiz, setLoadingQuiz] = useState(false);
   const [answers, setAnswers] = useState({});
   const [errorMessage, setErrorMessage] = useState("");
-  // NEW STATE
 const [quizFinished, setQuizFinished] = useState(false);
 const [score, setScore] = useState(0);
+const [viewingAnswers, setViewingAnswers] = useState(false);
+const [statsLoading, setStatsLoading] = useState(true);
+const [scores, setScores] = useState([]);
+
+
+
+useEffect(() => {
+  const loadUserStats = async () => {
+    const currentUser = auth.currentUser;
+    if (!currentUser) {
+      setStatsLoading(false);
+      return;
+    }
+
+    const userRef = doc(db, "users", currentUser.uid);
+    const snap = await getDoc(userRef);
+
+    if (!snap.exists()) {
+      setStats({ completedQuizzes: 0 });
+      setStatsLoading(false);
+      return;
+    }
+
+    const scores = snap.data().scores || [];
+    setScores(scores);
+
+    if (scores.length === 0) {
+      setStats({ completedQuizzes: 0 });
+      setStatsLoading(false);
+      return;
+    }
+
+    const last = scores[scores.length - 1];
+
+    // Completed quizzes
+    const completedQuizzes = scores.length;
+
+    // Average score across all quizzes
+    const averageScore = Math.round(
+      (scores.reduce((sum, s) => sum + s.score / s.totalQuestions, 0) /
+        completedQuizzes) *
+        100
+    );
+
+    // ----- BEST CATEGORY CALCULATION -----
+    const categoryMap = {};
+
+    scores.forEach((s) => {
+      if (!categoryMap[s.category]) {
+        categoryMap[s.category] = { totalScore: 0, totalQuestions: 0 };
+      }
+      categoryMap[s.category].totalScore += s.score;
+      categoryMap[s.category].totalQuestions += s.totalQuestions;
+    });
+
+    // Compute percentage per category
+    let bestCategory = "";
+    let bestPercentage = -1;
+
+    for (const category in categoryMap) {
+      const { totalScore, totalQuestions } = categoryMap[category];
+      const categoryPercent = (totalScore / totalQuestions) * 100;
+
+      if (categoryPercent > bestPercentage) {
+        bestPercentage = categoryPercent;
+        bestCategory = category;
+      }
+    }
+
+    // Save stats
+    setStats({
+      completedQuizzes,
+      averageScore,
+      bestCategory,
+    });
+
+    setLastQuiz(last);
+    setStatsLoading(false);
+  };
+
+  loadUserStats();
+}, []);
+
 
 
 
@@ -110,8 +188,6 @@ useEffect(() => {
   document.head.appendChild(s);
   return () => document.head.removeChild(s);
 }, []);
-
-
   // STEP 2: Countdown & Fetch before Start
   useEffect(() => {
     if (selectedCategory && selectedDifficulty && countdown === 3) {
@@ -191,8 +267,6 @@ const handleSubmitQuiz = async () => {
       },
       { merge: true } // merge so it doesn't overwrite existing data
     );
-
-    alert("✅ Quiz score saved to Firestore");
   } catch (err) {
     alert("❌ Error saving score:", err);
   }
@@ -200,27 +274,60 @@ const handleSubmitQuiz = async () => {
 
 
 const handleRestart = () => {
-  alert("testing")
+  console("testing")
 };
 
 const handleViewAnswers = () => {
-  alert("📌 Feature Coming Soon!");
+  setViewingAnswers(true);
 };
 
+if (viewingAnswers) {
+  return (
+    <div>
+      <Header user={user} scores={scores} />
 
+      <main className="p-6 pt-20">
+        <QuizAnswers
+          questions={questions}
+          answers={answers}
+          onBack={() => setViewingAnswers(false)}
+        />
+      </main>
+    </div>
+  );
+}
 
+if (statsLoading) {
+  return (
+    <div>
+        <LoadingQuiz />
+    </div>
+  );
+}
 
   return (
   <div>
-    <Header user={user} />
+    <Header user={user} scores={scores} />
 
-    <main className="p-6 pt-20">
+
+    <main className="p-6 pt-10">
+      {/* Welcome message ONLY for true new users */}
+    {stats.completedQuizzes === 0 && (
       <h1 className="text-4xl font-bold mb-6 text-center text-green-700 animate-bounce">
-        Welcome to Quiz AI🤖, <span className="text-green-500">{firstName}!</span>
+        Welcome to Quiz AI 🤖,{" "}
+        <span className="text-green-500">{firstName}!</span>
       </h1>
-
+    )}
       {!startQuiz ? (
-        <NewUser stats={stats} onStart={() => setStartQuiz(true)} />
+        stats && stats.completedQuizzes > 0 ? (
+          <ReturningUser
+            stats={stats}
+            lastQuiz={lastQuiz}
+            onStart={() => setStartQuiz(true)}
+          />
+        ) : (
+          <NewUser onStart={() => setStartQuiz(true)} />
+        )
       ) : !selectedCategory ? (
         <CategorySelect onSelect={(cat) => setSelectedCategory(cat)} />
       ) : !selectedDifficulty ? (

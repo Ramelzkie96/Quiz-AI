@@ -31,6 +31,7 @@ const QuizCard = ({
 
   return (
     <div className="max-w-3xl mx-auto p-6 bg-white rounded-2xl shadow-lg space-y-6">
+      
 
       {/* Header Info */}
       <div className="flex flex-col sm:flex-row justify-between items-center text-sm font-semibold text-gray-600">
@@ -78,23 +79,29 @@ const QuizCard = ({
         })}
       </div>
 
-      {/* Navigation */}
-      <div className="flex justify-between pt-4">
+     {/* Navigation */}
+    <div className="flex justify-between pt-4">
+      {/* Only show Back button if not the first question */}
+      {questionNumber > 1 ? (
         <button
           onClick={onBack}
           className="px-6 py-2 cursor-pointer bg-gray-200 text-gray-700 font-semibold rounded-xl shadow hover:bg-gray-300 transition"
         >
           ⬅ Back
         </button>
+      ) : (
+        <div /> // Empty div to keep spacing consistent
+      )}
 
-        <button
-          onClick={handleNextOrSubmit}
-          className={`px-6 py-2 cursor-pointer font-semibold rounded-xl shadow transition 
-          bg-green-500 hover:bg-green-600 text-white`}
-        >
-          {questionNumber === totalQuestions ? "Submit ✔" : "Next ➡"}
-        </button>
-      </div>
+      <button
+        onClick={handleNextOrSubmit}
+        className={`px-6 py-2 cursor-pointer font-semibold rounded-xl shadow transition 
+        bg-green-500 hover:bg-green-600 text-white`}
+      >
+        {questionNumber === totalQuestions ? "Submit ✔" : "Next ➡"}
+      </button>
+    </div>
+
     </div>
   );
 };

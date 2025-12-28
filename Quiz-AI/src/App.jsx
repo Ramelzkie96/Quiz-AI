@@ -5,6 +5,8 @@ import Dashboard from "./components/Dashboard";
 import { auth } from "./firebase/firebase";
 import { onAuthStateChanged } from "firebase/auth";
 import LoadingQuiz from "./components/LoadingQuiz";
+import History from "./components/History";
+import Leaderboard from "./components/Leaderboard";
 
 function App() {
   const [user, setUser] = useState(null);
@@ -18,7 +20,7 @@ function App() {
     return () => unsubscribe();
   }, []);
 
-  if (loading) return <LoadingQuiz />; // <-- USE COMPONENT
+  if (loading) return <LoadingQuiz />; 
 
   return (
     <Router>
@@ -33,6 +35,18 @@ function App() {
           path="/dashboard"
           element={user ? <Dashboard user={user} /> : <Navigate to="/login" />}
         />
+        <Route
+          path="/history"
+          element={user ? <History user={user} /> : <Navigate to="/login" />}
+        />
+
+        <Route
+          path="/leaderboard"
+          element={user ? <Leaderboard user={user} /> : <Navigate to="/login" />}
+        />
+
+
+
 
         {/* Default route */}
         <Route path="*" element={<Navigate to={user ? "/dashboard" : "/login"} />} />

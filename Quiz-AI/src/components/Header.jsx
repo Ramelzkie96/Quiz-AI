@@ -2,8 +2,11 @@ import React from "react";
 import { Logo } from "../assets/images/index.js";
 import { logoutUser } from "../firebase/firebase";
 import { FiLogOut } from "react-icons/fi";
+import { useNavigate } from "react-router-dom";
 
-const Header = ({ user }) => {
+const Header = ({ user, scores  }) => {
+  const navigate = useNavigate();
+
   const handleLogout = async () => {
     try {
       await logoutUser();
@@ -24,10 +27,17 @@ const Header = ({ user }) => {
       <div className="flex items-center space-x-6">
         {/* NAV LINKS */}
         <nav className="flex items-center space-x-6 text-white font-medium">
-          <button className="hover:text-green-300 transition-colors cursor-pointer">
+          <button
+            onClick={() => navigate("/leaderboard")}
+            className="hover:text-green-300 transition-colors cursor-pointer"
+          >
             Leaderboard
           </button>
-          <button className="hover:text-green-300 transition-colors cursor-pointer">
+
+          <button
+            className="hover:text-green-300 transition-colors cursor-pointer"
+            onClick={() => navigate("/history", { state: { scores } })}
+          >
             History
           </button>
         </nav>

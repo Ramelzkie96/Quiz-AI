@@ -1,26 +1,48 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { signInWithGoogle } from "../firebase/firebase"; // adjust path if needed
+import { auth, db } from "../firebase/firebase";
 import { Google } from "../assets/images/index";
+import {
+  GoogleAuthProvider,
+  signInWithPopup,
+} from "firebase/auth";
+import { doc, setDoc, serverTimestamp } from "firebase/firestore";
 
-const Login = ({ onLogin }) => {
-  const [loading, setLoading] = useState(false); // prevent multiple clicks
-  const navigate = useNavigate(); // for redirect
+const Login = () => {
+  const [loading, setLoading] = useState(false);
+  const navigate = useNavigate();
 
   const handleGoogleLogin = async () => {
-  if (loading) return;
-  setLoading(true);
+    if (loading) return;
+    setLoading(true);
 
-  try {
-    await signInWithGoogle(); // No need to manually set user
-    navigate("/dashboard");
-  } catch (error) {
-    console.error("Error:", error);
-  } finally {
-    setLoading(false);
-  }
-};
+    try {
+      const provider = new GoogleAuthProvider();
+      provider.setCustomParameters({ prompt: "select_account" });
 
+      // Sign in with Google
+      const result = await signInWithPopup(auth, provider);
+      const user = result.user;
+
+      // Save user profile to Firestore
+      await setDoc(
+        doc(db, "users", user.uid),
+        {
+          displayName: user.displayName,
+          photoURL: user.photoURL,
+          email: user.email,
+          lastLogin: serverTimestamp(),
+        },
+        { merge: true } // merge to keep scores array
+      );
+
+      navigate("/dashboard");
+    } catch (error) {
+      console.error("Login Error:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <div className="flex items-center justify-center min-h-screen bg-gray-100">
@@ -44,7 +66,9 @@ const Login = ({ onLogin }) => {
 
         <p className="text-gray-400 mt-6 text-sm">
           By signing in, you agree to our{" "}
-          <span className="text-blue-500 underline cursor-pointer">Terms</span>{" "}
+          <span className="text-blue-500 underline cursor-pointer">
+            Terms
+          </span>{" "}
           and{" "}
           <span className="text-blue-500 underline cursor-pointer">
             Privacy Policy
