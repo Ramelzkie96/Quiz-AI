@@ -14,7 +14,6 @@ import LoadingQuiz from "./LoadingQuiz";
 
 const db = getFirestore();
 const auth = getAuth();
-// Add this under your imports
 const styles = `
 @keyframes loadingDots {
   0% { content: "."; }
@@ -90,7 +89,6 @@ useEffect(() => {
         100
     );
 
-    // ----- BEST CATEGORY CALCULATION -----
     const categoryMap = {};
 
     scores.forEach((s) => {
@@ -101,7 +99,6 @@ useEffect(() => {
       categoryMap[s.category].totalQuestions += s.totalQuestions;
     });
 
-    // Compute percentage per category
     let bestCategory = "";
     let bestPercentage = -1;
 
@@ -129,10 +126,6 @@ useEffect(() => {
   loadUserStats();
 }, []);
 
-
-
-
-  // STEP 1: Fetch Questions from Backend
 const fetchQuiz = async () => {
   setLoadingQuiz(true);
   setErrorMessage("");
