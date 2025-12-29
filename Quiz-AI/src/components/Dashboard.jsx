@@ -131,7 +131,7 @@ const fetchQuiz = async () => {
   setErrorMessage("");
 
   try {
-    const response = await fetch("http://localhost:5000/generate-quiz", {
+    const response = await fetch("https://quiz-ai-api.onrender.com/generate-quiz", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -140,6 +140,7 @@ const fetchQuiz = async () => {
         count: selectedDifficulty.count
       }),
     });
+
 
     const data = await response.json();
 
